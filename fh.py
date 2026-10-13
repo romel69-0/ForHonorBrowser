@@ -47,7 +47,7 @@ CACHE = os.path.join(HERE, 'cache')
 M32 = 0xffffffff
 M64 = 0xffffffffffffffff
 COMMON_SKELETON = 0xd086734112b8202c   # medf_common_skeleton object file
-GLB_VERSION = 7    # bump when the GLB builder changes; old cached files are ignored
+GLB_VERSION = 10    # bump when the GLB builder changes; old cached files are ignored
 MESH_T = b'\x68\x95\x5d\x41'      # 0x415d9568 mesh record
 MAT_T = b'\xc3\x17\xc8\x85'       # 0x85c817c3 material record
 BODY = b'\x53\xae\xea\xf8'        # mesh body magic
@@ -432,6 +432,7 @@ class DB:
                 self.NAME[nm] = ids[i]
         self.gd_ids_sorted = np.array(sorted(self.ID), np.uint64)
         self.mat_ids = {ids[i] for i, t in enumerate(typ) if t == 0x85c817c3}
+        self.tex_ids = np.array(sorted(ids[i] for i, t in enumerate(typ) if t == 0x59ce4d13), np.uint64)
         self._rawf = open(rawp, 'rb')
         self._raw = mmap.mmap(self._rawf.fileno(), 0, access=mmap.ACCESS_READ)
 
@@ -503,13 +504,24 @@ class DB:
         return a[:size]
 
     def tex_image(self, tid):
-        o = self.gd(tid)
+        return self._tex(self.gd(tid), [x for sid, l in self.deps.get(tid, []) for x in l])
+
+    def _tex(self, o, hs):
         k = -1 if o is None else o.find(b'\x3d\x4b\x0c\xc3')
         if k < 0:
             return None
         size, w, h = struct.unpack_from('<III', o, k + 4)
         fmt = struct.unpack_from('<I', o, k + 41)[0]
-        hs = [x for sid, l in self.deps.get(tid, []) for x in l]
+        if not hs and 0 < size <= len(o) - k - 8:
+            # small texture with its pixels stored right in the record: square mip chain, size tells the dimensions
+            for blk, fourcc in ((8, b'DXT1'), (16, b'DXT5')):
+                for e in range(2, 12):
+                    n = 1 << e
+                    if sum(max(1, (n >> i) // 4) ** 2 * blk for i in range(e + 1)) == size:
+                        im = Image.open(io.BytesIO(_dds(n, n, fourcc, bytes(o[k + 8:k + 8 + (n // 4) ** 2 * blk]))))
+                        im.load()
+                        return im, 2 if blk == 8 else 4
+            return None
         if not hs or not w or not h:
             return None
         a = self.by_hash(hs[0])
@@ -523,7 +535,8 @@ class DB:
         im.load()
         return im, fmt
 
-    def texture(self, base):
+    def texture(self, base, ids=(), inline=(), fid=None):
+        """by name (top mip first), else the largest of the texture objects listed by an inline texture set"""
         for nm in (base + '_CHRTM_1', base + '_CHRTM_0', base):
             tid = self.NAME.get(nm)
             if tid is None:
@@ -534,7 +547,22 @@ class DB:
                     return r
             except Exception as ex:
                 self.log('texture %s failed: %r' % (nm, ex))
-        return None
+        best = None
+        for tid in ids:
+            try:
+                r = self.tex_image(tid)
+            except Exception:
+                r = None
+            if r and (best is None or r[0].size[0] > best[0].size[0]):
+                best = r
+        for sub, rec in inline:
+            try:
+                r = self._tex(rec, [x for sid, l in self.deps.get(fid, []) if sid == sub for x in l])
+            except Exception:
+                r = None
+            if r and (best is None or r[0].size[0] > best[0].size[0]):
+                best = r
+        return best
 
     # ---- model
     def ref_pose(self):
@@ -617,16 +645,24 @@ class DB:
             ln = m.group(1)[0]
             nm = d[m.end():m.end() + ln]
             if m.start() >= 8 and ln >= 4 and len(nm) == ln and all(c in PRINT for c in nm):
-                local[struct.unpack_from('<Q', d, m.start() - 8)[0]] = nm.decode('latin1')
+                local[struct.unpack_from('<Q', d, m.start() - 8)[0]] = (nm.decode('latin1'), m.start())
         ids = np.array(sorted(local), np.uint64)
+        offs = sorted(o for _, o in local.values()) + [len(d)]
         names = [local[i] for o, i in find_ids(reg, ids)]
-        names += [self.gd_name[self.ID[i]] for o, i in find_ids(reg, self.gd_ids_sorted) if i > 0xffff]
+        names += [(self.gd_name[self.ID[i]], None) for o, i in find_ids(reg, self.gd_ids_sorted) if i > 0xffff]
         found = {}
-        for nm in names:
+        for nm, off in names:
             for kind in ('DiffuseMap', 'NormalMap', 'ColorMaskMap'):
                 k = nm.find(kind)
                 if k > 0 and kind not in found and 'DEC_' not in nm:
                     found[kind] = nm[:k + len(kind)]
+                    if off is not None:     # inline texture set: it lists the texture objects by id (their names can differ)
+                        end = next(x for x in offs if x > off)
+                        spec = d[off:min(end, off + 4096)]
+                        found[kind + '_ids'] = [i for o, i in find_ids(spec, self.tex_ids)]
+                        # textures embedded in this file: (sub id, record bytes)
+                        found[kind + '_inline'] = [(i, d[local[i][1]:next(x for x in offs if x > local[i][1])])
+                                                   for o, i in find_ids(spec, ids) if kind in local[i][0] and local[i][1] != off]
         for kind in ('DiffuseMap', 'NormalMap', 'ColorMaskMap'):     # fallback: textures named after the material (minus variant suffixes)
             base = name
             for _ in range(3):
@@ -676,18 +712,18 @@ class DB:
                 matidx[mid] = None
                 return None
             m = dict(name=name or 'material', pbrMetallicRoughness=dict(metallicFactor=0.3, roughnessFactor=0.65), doubleSided=True)
-            t = self.texture(found['DiffuseMap']) if 'DiffuseMap' in found else None
+            t = self.texture(found['DiffuseMap'], found.get('DiffuseMap_ids', ()), found.get('DiffuseMap_inline', ()), fid) if 'DiffuseMap' in found else None
             if t:
                 m['pbrMetallicRoughness']['baseColorTexture'] = dict(index=add_image(t[0].convert('RGB'), name + '_diffuse'))
             else:
                 m['pbrMetallicRoughness']['baseColorFactor'] = [0.6, 0.6, 0.62, 1]
-            t = self.texture(found['NormalMap']) if 'NormalMap' in found else None
+            t = self.texture(found['NormalMap'], found.get('NormalMap_ids', ()), found.get('NormalMap_inline', ()), fid) if 'NormalMap' in found else None
             if t and t[1] == 6:                 # BC5: rebuild Z
                 a = np.asarray(t[0].convert('RGB')).astype(np.float32) / 255 * 2 - 1
                 x, y = a[..., 0], a[..., 1]
                 z = np.sqrt(np.clip(1 - x * x - y * y, 0, 1))
                 m['normalTexture'] = dict(index=add_image(Image.fromarray(((np.dstack([x, y, z]) + 1) * 127.5).astype(np.uint8)), name + '_normal'))
-            t = self.texture(found['ColorMaskMap']) if 'ColorMaskMap' in found and 'baseColorTexture' in m['pbrMetallicRoughness'] else None
+            t = self.texture(found['ColorMaskMap'], found.get('ColorMaskMap_ids', ()), found.get('ColorMaskMap_inline', ()), fid) if 'ColorMaskMap' in found and 'baseColorTexture' in m['pbrMetallicRoughness'] else None
             if t:   # colour mask (R/G/B = tintable regions) rides along as a zero-strength emissive map for the viewer
                 m['emissiveTexture'] = dict(index=add_image(t[0].convert('RGB'), name + '_colormask'))
                 m['emissiveFactor'] = [0, 0, 0]
