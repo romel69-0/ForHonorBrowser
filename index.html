@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>For Honor Viewer</title>
+<style>
+  :root { --bg:#14161a; --panel:#1b1e24; --line:#2a2f38; --text:#e6e8ec; --dim:#8b93a1; --accent:#d9a441; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; background:var(--bg); color:var(--text); font:14px/1.4 "Segoe UI",system-ui,sans-serif; }
+  #app { display:grid; grid-template-columns:330px 1fr 290px; height:100%; }
+  aside { background:var(--panel); display:flex; flex-direction:column; min-height:0; }
+  #left { border-right:1px solid var(--line); } #right { border-left:1px solid var(--line); overflow:auto; padding:14px 16px; gap:16px; }
+  header { padding:14px 16px 10px; }
+  h1 { font-size:15px; margin:0 0 10px; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); }
+  h2 { font-size:12px; margin:0 0 8px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); font-weight:600; }
+  input[type=search], select { width:100%; padding:8px 9px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; font:inherit; }
+  input[type=search]:focus, select:focus, button:focus-visible { outline:2px solid var(--accent); outline-offset:-1px; }
+  button { font:inherit; cursor:pointer; }
+  .btn { background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:12px; }
+  .btn:hover { border-color:var(--accent); } .btn[aria-pressed=true] { background:var(--accent); color:#14161a; border-color:var(--accent); }
+  .btn.wide { width:100%; padding:8px; margin-top:6px; }
+  #count { color:var(--dim); font-size:12px; margin-top:8px; }
+  .quick { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .tabs button { flex:1; background:var(--bg); color:var(--dim); border:1px solid var(--line); border-radius:6px; padding:6px; }
+  .tabs button[aria-selected=true] { color:#14161a; background:var(--accent); border-color:var(--accent); }
+  #list { flex:1; overflow:auto; border-top:1px solid var(--line); }
+  .row { display:grid; grid-template-columns:1fr auto; width:100%; }
+  .row button { background:none; border:0; color:var(--text); text-align:left; padding:7px 8px 7px 16px; overflow-wrap:anywhere; }
+  .row button.add { padding:7px 14px; color:var(--dim); } .row:hover { background:#232730; }
+  .row small, summary small { color:var(--dim); margin-left:6px; }
+  details { border-bottom:1px solid var(--line); }
+  summary { padding:8px 16px; cursor:pointer; } summary small { text-transform:none; }
+  .outfits { display:flex; flex-wrap:wrap; gap:5px; padding:2px 16px 12px; }
+  .outfits button { background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:5px; padding:4px 7px; font-size:12px; }
+  .outfits button:hover { border-color:var(--accent); } .outfits button.partial { color:var(--dim); }
+  main { position:relative; min-width:0; }
+  canvas#c { display:block; width:100%; height:100%; }
+  .bar { position:absolute; left:12px; top:12px; display:flex; gap:6px; flex-wrap:wrap; }
+  #scene { position:absolute; left:12px; bottom:12px; right:12px; display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { background:rgba(27,30,36,.9); border:1px solid var(--line); border-radius:14px; padding:3px 4px 3px 10px; font-size:12px; display:flex; gap:4px; align-items:center; }
+  .chip button { background:none; border:0; color:var(--dim); padding:0 6px; }
+  #status { position:absolute; right:12px; top:12px; color:var(--dim); font-size:12px; text-align:right; max-width:50%; }
+  #status.err { color:#ff8a7a; }
+  label.f { display:grid; grid-template-columns:62px 1fr; align-items:center; gap:8px; margin-bottom:7px; color:var(--dim); font-size:13px; }
+  .col { display:grid; grid-template-columns:20px 62px 1fr; align-items:center; gap:8px; margin-bottom:7px; font-size:13px; }
+  .col input[type=color] { width:100%; height:26px; padding:0; border:1px solid var(--line); border-radius:5px; background:var(--bg); }
+  .hint { color:var(--dim); font-size:12px; margin:6px 0 0; }
+  @media (max-width:1000px) { #app { grid-template-columns:1fr; grid-template-rows:34% 40% 26%; } #left,#right { border:0; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="app">
+  <aside id="left">
+    <header>
+      <h1>For Honor Viewer</h1>
+      <div class="tabs" role="tablist">
+        <button id="tabHeroes" role="tab" aria-selected="true">Heroes</button>
+        <button id="tabAll" role="tab" aria-selected="false">All models</button>
+      </div>
+      <input id="q" type="search" placeholder="Search…" autocomplete="off" aria-label="Search models">
+      <div class="quick" id="quick"></div>
+      <div id="count"></div>
+    </header>
+    <div id="list" role="list"></div>
+  </aside>
+  <main>
+    <canvas id="c"></canvas>
+    <div class="bar">
+      <button class="btn" id="clear">Clear scene</button>
+      <button class="btn" id="frame">Frame</button>
+      <button class="btn" id="wire" aria-pressed="false">Wireframe</button>
+      <button class="btn" id="tex" aria-pressed="true">Textures</button>
+    </div>
+    <div id="status">Loading…</div>
+    <div id="scene"></div>
+  </main>
+  <aside id="right">
+    <section>
+      <h2>Customize <span id="heroName"></span></h2>
+      <label class="f">Helm <select id="slot_helm" disabled></select></label>
+      <label class="f">Chest <select id="slot_chest" disabled></select></label>
+      <label class="f">Arms <select id="slot_arms" disabled></select></label>
+      <p class="hint" id="slotHint">Pick a hero outfit on the left, then mix parts from any of that hero's outfits here.</p>
+    </section>
+    <section>
+      <h2>Colours</h2>
+      <div class="col"><input type="checkbox" id="on0" aria-label="Enable colour 1"><span>Colour 1</span><input type="color" id="c0" value="#7a1f1f" aria-label="Colour 1"></div>
+      <div class="col"><input type="checkbox" id="on1" aria-label="Enable colour 2"><span>Colour 2</span><input type="color" id="c1" value="#d9b45a" aria-label="Colour 2"></div>
+      <div class="col"><input type="checkbox" id="on2" aria-label="Enable colour 3"><span>Colour 3</span><input type="color" id="c2" value="#1f3a6b" aria-label="Colour 3"></div>
+      <label class="f" style="margin-top:10px">Material <select id="metal"></select></label>
+      <div class="col" id="customMetal" style="display:none"><span></span><span>Custom</span><input type="color" id="cm" value="#8a8f98" aria-label="Custom material colour"></div>
+      <button class="btn wide" id="resetLook">Reset colours and material</button>
+      <p class="hint">Colours tint the three regions of each armour's colour mask. Material recolours everything outside the mask (armour metal, but also skin on bare-skinned heroes).</p>
+    </section>
+    <section>
+      <h2>Export</h2>
+      <button class="btn wide" id="dlCustom">Export customized set (one GLB)</button>
+      <button class="btn wide" id="dl">Download original parts (full-res GLBs)</button>
+      <p class="hint">Customized export keeps your part mix, colours and material at viewer texture size (1024). Original parts are untinted at full size.</p>
+    </section>
+  </aside>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const $ = id => document.getElementById(id);
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14161a);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(2, 4, 3); scene.add(sun);
+scene.add(new THREE.GridHelper(6, 24, 0x3a4150, 0x242932));
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 500);
+camera.position.set(1.6, 1.5, 3.2);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1, 0); controls.enableDamping = true;
+const root = new THREE.Group(); root.name = 'ForHonorSet'; scene.add(root);
+const loader = new GLTFLoader();
+const loaded = [];          // {id, name, object, slot?}
+let wire = false, textured = true;
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight, pr = renderer.getPixelRatio();
+  if (canvas.width !== Math.floor(w * pr) || canvas.height !== Math.floor(h * pr)) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+}
+renderer.setAnimationLoop(() => { resize(); controls.update(); renderer.render(scene, camera); });
+function status(t, err) { $('status').textContent = t; $('status').className = err ? 'err' : ''; }
+function frame() {
+  const box = new THREE.Box3().setFromObject(root);
+  if (box.isEmpty()) return;
+  const c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
+  controls.target.copy(c);
+  camera.position.copy(c).add(new THREE.Vector3(0.45, 0.25, 1).normalize().multiplyScalar(r / Math.sin(camera.fov * Math.PI / 360) * 1.05));
+  camera.near = r / 100; camera.far = r * 100; camera.updateProjectionMatrix();
+}
+
+// ---------- look: colour mask tinting + material
+const METALS = { 'Default': null, 'Iron': ['#8a8f98', .9, .45], 'Black Iron': ['#2e2f33', .9, .5], 'Tar': ['#141414', .8, .35], 'Silver': ['#cfd3d8', 1, .25],
+  'White Iron': ['#eceef0', .9, .35], 'Gold': ['#d9a933', 1, .28], 'Bronze': ['#a8713a', 1, .38], 'Copper': ['#b9653f', 1, .35], 'Custom…': 'custom' };
+for (const k in METALS) $('metal').add(new Option(k));
+const hex = h => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+function look() {
+  const m = METALS[$('metal').value];
+  return { cols: [0, 1, 2].map(i => $('on' + i).checked ? hex($('c' + i).value) : null),
+           metal: m === 'custom' ? [$('cm').value, .9, .4] : m };
+}
+function pixels(img, w, h) {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, w, h);
+  return cx.getImageData(0, 0, w, h);
+}
+const ST = new WeakMap();   // per-material state; kept out of userData so the exporter does not serialize it
+function prep(mat) {     // capture original diffuse + colour mask once per material
+  if (ST.has(mat)) return;
+  ST.set(mat, null);
+  if (!mat.map || !mat.map.image) return;
+  const w = Math.min(1024, mat.map.image.width), h = Math.min(1024, mat.map.image.height);
+  const st = { w, h, orig: mat.map, diffuse: pixels(mat.map.image, w, h), mask: null, metalness: mat.metalness, roughness: mat.roughness };
+  if (mat.emissiveMap && mat.emissiveMap.image) st.mask = pixels(mat.emissiveMap.image, w, h);
+  mat.emissiveMap = null; mat.emissive.set(0);        // the mask only rides along in the file; never rendered or exported
+  ST.set(mat, st);
+}
+function canvasTex(src, w, h, data, srgb) {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').putImageData(data, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.flipY = false; t.wrapS = src.wrapS; t.wrapT = src.wrapT;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.userData.mimeType = 'image/jpeg';      // exporter writes JPEG instead of huge PNGs
+  return t;
+}
+function applyLook(obj) {
+  const L = look(), any = L.metal || L.cols.some(Boolean);
+  obj.traverse(o => {
+    if (!o.isMesh) return;
+    const mat = o.material; prep(mat); mat.wireframe = wire;
+    const st = ST.get(mat);
+    if (!st) return;
+    if (st.tex) { st.tex.dispose(); st.tex = null; } if (st.mr) { st.mr.dispose(); st.mr = null; }
+    mat.metalnessMap = mat.roughnessMap = null; mat.metalness = st.metalness; mat.roughness = st.roughness;
+    if (!textured) { mat.map = null; mat.needsUpdate = true; return; }
+    if (!any) { mat.map = st.orig; mat.needsUpdate = true; return; }
+    const d = st.diffuse.data, k = st.mask ? st.mask.data : null, n = st.w * st.h;
+    const out = new ImageData(st.w, st.h), q = out.data, mc = L.metal ? hex(L.metal[0]) : null;
+    const mr = L.metal ? new ImageData(st.w, st.h) : null;
+    for (let i = 0, p = 0; i < n; i++, p += 4) {
+      const r = d[p], g = d[p + 1], b = d[p + 2], lum = Math.min(255, (0.3 * r + 0.59 * g + 0.11 * b) * 1.7);
+      const m0 = k ? k[p] / 255 : 0, m1 = k ? k[p + 1] / 255 : 0, m2 = k ? k[p + 2] / 255 : 0, w0 = Math.max(0, 1 - m0 - m1 - m2);
+      let R = 0, G = 0, B = 0;
+      const add = (w, c) => { if (c) { R += w * lum * (c[0] + .04); G += w * lum * (c[1] + .04); B += w * lum * (c[2] + .04); } else { R += w * r; G += w * g; B += w * b; } };
+      add(w0, mc); add(m0, L.cols[0]); add(m1, L.cols[1]); add(m2, L.cols[2]);
+      q[p] = R; q[p + 1] = G; q[p + 2] = B; q[p + 3] = 255;
+      if (mr) { mr.data[p + 1] = 255 * (w0 * L.metal[2] + (1 - w0) * st.roughness); mr.data[p + 2] = 255 * (w0 * L.metal[1] + (1 - w0) * st.metalness); mr.data[p + 3] = 255; }
+    }
+    mat.map = st.tex = canvasTex(st.orig, st.w, st.h, out, true);
+    if (mr) { mat.metalnessMap = mat.roughnessMap = st.mr = canvasTex(st.orig, st.w, st.h, mr, false); mat.metalness = 1; mat.roughness = 1; }
+    mat.needsUpdate = true;
+  });
+}
+let lookTimer;
+function relook() { clearTimeout(lookTimer); lookTimer = setTimeout(() => loaded.forEach(m => applyLook(m.object)), 60); }
+for (const id of ['on0', 'on1', 'on2', 'c0', 'c1', 'c2', 'cm', 'metal']) $(id).addEventListener('input', () => {
+  if (id[0] === 'c' && id !== 'cm') $('on' + id[1]).checked = true;
+  $('customMetal').style.display = $('metal').value === 'Custom…' ? '' : 'none'; relook();
+});
+$('resetLook').onclick = () => { [0, 1, 2].forEach(i => $('on' + i).checked = false); $('metal').value = 'Default'; $('customMetal').style.display = 'none'; relook(); };
+
+// ---------- scene
+function stats() {
+  let tris = 0; root.traverse(o => { if (o.isMesh) tris += o.geometry.index.count / 3; });
+  status(loaded.length ? `${loaded.length} model(s), ${tris.toLocaleString()} triangles` : 'Pick a hero outfit or a model');
+}
+function removeModel(m) { root.remove(m.object); loaded.splice(loaded.indexOf(m), 1); }
+function chips() {
+  const el = $('scene'); el.textContent = '';
+  for (const m of loaded) {
+    const d = document.createElement('div'); d.className = 'chip'; d.append(m.name);
+    const b = document.createElement('button'); b.textContent = '✕'; b.setAttribute('aria-label', 'Remove ' + m.name);
+    b.onclick = () => { removeModel(m); if (m.slot) $('slot_' + m.slot).value = ''; chips(); stats(); };
+    d.append(b); el.append(d);
+  }
+}
+function clearScene() { while (loaded.length) removeModel(loaded[0]); for (const s of SLOTS) $('slot_' + s).value = ''; chips(); stats(); }
+async function load(item, add, slot) {
+  status('Loading ' + item.name + '…');
+  try {
+    const r = await fetch('/api/model?id=' + item.id);
+    if (!r.ok) throw new Error(await r.text());
+    const gltf = await loader.parseAsync(await r.arrayBuffer(), '');
+    if (!add) clearScene();
+    if (slot) loaded.filter(m => m.slot === slot).forEach(removeModel);
+    gltf.scene.name = item.name; applyLook(gltf.scene); root.add(gltf.scene);
+    loaded.push({ id: item.id, name: item.name, object: gltf.scene, slot });
+    chips(); stats(); if (!add || loaded.length === 1) frame();
+  } catch (e) { status('Failed: ' + item.name + ' — ' + e.message, true); }
+}
+
+// ---------- heroes + part slots
+const SLOTS = ['helm', 'chest', 'arms'];
+let heroes = [], tab = 'heroes', hero = null, timer;
+const oLabel = o => o.name + (o.body === 'medf' ? ' ♀' : ' ♂');
+function setHero(h) {
+  hero = h; $('heroName').textContent = '· ' + h.hero; $('slotHint').textContent = 'Mix parts from any outfit of this hero.';
+  for (const s of SLOTS) {
+    const sel = $('slot_' + s); sel.textContent = ''; sel.disabled = false; sel.add(new Option('— none —', ''));
+    h.outfits.forEach((o, i) => { if (o.parts[s]) sel.add(new Option(oLabel(o), i)); });
+  }
+}
+async function setSlot(s, i) {
+  loaded.filter(m => m.slot === s).forEach(removeModel);
+  if (i === '') { chips(); stats(); return; }
+  const o = hero.outfits[i];
+  await load({ id: o.parts[s], name: `${hero.hero} ${oLabel(o)} ${s}` }, true, s);
+}
+for (const s of SLOTS) $('slot_' + s).onchange = e => setSlot(s, e.target.value);
+async function loadOutfit(h, o) {
+  clearScene(); setHero(h);
+  const i = h.outfits.indexOf(o);
+  for (const s of SLOTS) if (o.parts[s]) { $('slot_' + s).value = i; await setSlot(s, String(i)); }
+  frame();
+}
+function showHeroes() {
+  const words = $('q').value.toLowerCase().split(/\s+/).filter(Boolean);
+  const list = $('list'); list.textContent = '';
+  let n = 0;
+  for (const h of heroes) {
+    const hay = (h.hero + ' ' + h.faction + ' ' + h.codes.join(' ')).toLowerCase();
+    const outfits = h.outfits.filter(o => words.every(w => (hay + ' ' + o.name + ' ' + o.body).includes(w)));
+    if (!outfits.length) continue;
+    n += outfits.length;
+    const d = document.createElement('details'); d.open = words.length > 0;
+    const s = document.createElement('summary'); s.append(h.hero); s.title = 'internal: ' + h.codes.join(', ');
+    const sm = document.createElement('small'); sm.textContent = `${h.faction || '—'} · ${outfits.length} outfits · ${h.codes.join(', ')}`; s.append(sm);
+    const box = document.createElement('div'); box.className = 'outfits';
+    for (const o of outfits) {
+      const b = document.createElement('button'); b.textContent = oLabel(o);
+      if (Object.keys(o.parts).length < 3) b.className = 'partial';
+      b.title = `${Object.keys(o.parts).join(' + ')} (${o.body})`; b.onclick = () => loadOutfit(h, o);
+      box.append(b);
+    }
+    d.append(s, box); list.append(d);
+  }
+  $('count').textContent = `${n.toLocaleString()} outfits · click one, then customize on the right`;
+}
+async function search() {
+  const r = await (await fetch('/api/search?q=' + encodeURIComponent($('q').value))).json();
+  $('count').textContent = `${r.items.length}${r.items.length >= 400 ? '+' : ''} shown of ${r.total.toLocaleString()} models`;
+  const list = $('list'); list.textContent = '';
+  for (const it of r.items) {
+    const row = document.createElement('div'); row.className = 'row'; row.setAttribute('role', 'listitem');
+    const b = document.createElement('button'); b.append(it.name);
+    const s = document.createElement('small'); s.textContent = it.meshes + (it.meshes > 1 ? ' meshes' : ' mesh'); b.append(s);
+    b.onclick = () => load(it, false);
+    const a = document.createElement('button'); a.className = 'add'; a.textContent = '+'; a.title = 'Add to scene (weapons, ornaments…)';
+    a.setAttribute('aria-label', 'Add ' + it.name + ' to scene'); a.onclick = () => load(it, true);
+    row.append(b, a); list.append(row);
+  }
+}
+function refresh() { tab === 'heroes' ? showHeroes() : search(); }
+function setTab(t) {
+  tab = t; $('tabHeroes').setAttribute('aria-selected', t === 'heroes'); $('tabAll').setAttribute('aria-selected', t === 'all');
+  $('quick').style.display = t === 'all' ? '' : 'none'; refresh();
+}
+$('tabHeroes').onclick = () => setTab('heroes'); $('tabAll').onclick = () => setTab('all');
+$('q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refresh, 200); });
+for (const w of ['weapon', 'ornament', 'helm', 'chest', 'arms', 'mood', 'gfx', 'smlu']) {
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = w; b.onclick = () => { $('q').value = w; search(); }; $('quick').append(b);
+}
+
+// ---------- toolbar + export
+function save(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+$('clear').onclick = clearScene;
+$('frame').onclick = frame;
+$('wire').onclick = e => { wire = !wire; e.target.setAttribute('aria-pressed', wire); root.traverse(o => o.isMesh && (o.material.wireframe = wire)); };
+$('tex').onclick = e => { textured = !textured; e.target.setAttribute('aria-pressed', textured); relook(); };
+$('dl').onclick = () => { for (const m of loaded) { const a = document.createElement('a'); a.href = '/api/model?full=1&id=' + m.id; a.download = m.name + '.glb'; a.click(); } };
+$('dlCustom').onclick = () => {
+  if (!loaded.length) return status('Nothing to export', true);
+  status('Exporting…');
+  new GLTFExporter().parse(root, buf => { save(new Blob([buf], { type: 'model/gltf-binary' }), (hero ? hero.hero.replace(/\W+/g, '_') : 'ForHonor') + '_custom.glb'); stats(); },
+    e => status('Export failed: ' + e, true), { binary: true });
+};
+// self-check hook: resolves to the customized export (ArrayBuffer) without saving a file
+window.fhExport = () => new Promise((res, rej) => new GLTFExporter().parse(root, res, rej, { binary: true }));
+fetch('/api/heroes').then(r => r.json()).then(h => { heroes = h; setTab('heroes'); stats(); })
+  .catch(e => status('Server not reachable: ' + e.message, true));
+</script>
+</body>
+</html>

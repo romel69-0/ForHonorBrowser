@@ -1,0 +1,15 @@
+# extracted / derived game data: never commit
+cache/
+thumbs/
+*.glb
+*.forge
+oo2core*.dll
+
+# build output
+build/
+dist/
+*.exe
+*.spec
+__pycache__/
+*.log
+*.err
