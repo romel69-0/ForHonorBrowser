@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- Each tint colour has a **Shiny** switch: polished metal finish, or plain flat colour.
+
 ## 1.0.0
 
 First public release.

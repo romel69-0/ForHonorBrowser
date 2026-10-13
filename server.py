@@ -3,7 +3,7 @@ import os, sys, re, json, threading, subprocess, webbrowser, socket
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 PORT = 8765
 URL = 'http://127.0.0.1:%d' % PORT
 FACTIONS = {'knight', 'viking', 'samurai', 'chinese', 'outlanders'}

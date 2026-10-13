@@ -10,7 +10,7 @@ It reads the game's `.forge` archives directly, shows any of ~48,000 models in a
 
 - **Hero browser:** 46 hero groups and about 1,770 outfits, listed under their in-game names (Warden, Raider, Orochi, …). One click loads chest, arms and helm together.
 - **Mix and match:** pick helm, chest and arms separately from any outfit of the same hero.
-- **Colours and materials:** three tint colours driven by each armour's own colour-mask texture, plus metal presets (Iron, Black Iron, Tar, Silver, White Iron, Gold, Bronze, Copper, custom).
+- **Colours and materials:** three tint colours driven by each armour's own colour-mask texture, each switchable between plain colour and shiny metal, plus metal presets (Iron, Black Iron, Tar, Silver, White Iron, Gold, Bronze, Copper, custom).
 - **Everything else:** search all models by internal name: weapons, ornaments, props.
 - **Export:**
   - *Customized set*: one `.glb` with your part mix, colours and material.
