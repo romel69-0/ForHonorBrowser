@@ -704,7 +704,7 @@ class DB:
                 nodes.append(dict(name=nm, mesh=len(meshes) - 1))
         if not meshes:
             raise ValueError('no decodable meshes' + (': ' + '; '.join(notes[:3]) if notes else ''))
-        g = dict(asset=dict(version='2.0', generator='ForHonorViewer'), scene=0, scenes=[dict(nodes=list(range(len(nodes))))],
+        g = dict(asset=dict(version='2.0', generator='ForHonorBrowser'), scene=0, scenes=[dict(nodes=list(range(len(nodes))))],
                  nodes=nodes, meshes=meshes, materials=materials, accessors=acc, bufferViews=views, buffers=[dict(byteLength=len(bin_))])
         if textures:
             g['textures'] = textures; g['images'] = images

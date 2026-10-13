@@ -1,4 +1,4 @@
-# For Honor Viewer
+# For Honor Browser
 
 Browse, customize and export the 3D models in your own copy of **For Honor** (PC).
 
@@ -25,7 +25,7 @@ It reads the game's `.forge` archives directly, shows any of ~48,000 models in a
 
 ## Run
 
-**From a release:** download `ForHonorViewer.exe`, put it in an empty folder and double-click it.
+**From a release:** download `ForHonorBrowser.exe`, put it in an empty folder and double-click it.
 
 **From source:**
 
@@ -81,7 +81,7 @@ A console window shows progress and the app opens at `http://127.0.0.1:8765` (as
 
 ```bash
 pip install pyinstaller
-python -m PyInstaller --onefile --console --name ForHonorViewer --add-data "%CD%\index.html;." --distpath . --workpath build --specpath build server.py
+python -m PyInstaller --onefile --console --name ForHonorBrowser --add-data "%CD%\index.html;." --distpath . --workpath build --specpath build server.py
 ```
 
 ## Legal

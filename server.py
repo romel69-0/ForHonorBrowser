@@ -1,4 +1,4 @@
-"""For Honor Viewer: local server + app window.  python server.py  (or ForHonorViewer.exe)"""
+"""For Honor Browser: local server + app window.  python server.py  (or ForHonorBrowser.exe)"""
 import os, sys, re, json, threading, subprocess, webbrowser, socket
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -52,7 +52,7 @@ if already_running():
     sys.exit(0)
 
 import fh
-print('For Honor Viewer - reading', fh.GAME)
+print('For Honor Browser - reading', fh.GAME)
 db = fh.DB()
 lock = threading.Lock()      # Oodle output buffer and file handles are shared
 
