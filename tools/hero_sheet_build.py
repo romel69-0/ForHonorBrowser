@@ -1,4 +1,6 @@
 """build one complete outfit per (faction, hero) into thumbs/ and report mesh anomalies"""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # repo root (fh.py)
 import fh, re, os, json, struct, collections, numpy as np
 db = fh.DB(log=lambda *a: None)
 OUT = os.path.join(fh.HERE, 'thumbs'); os.makedirs(OUT, exist_ok=True)

@@ -25,7 +25,9 @@ It reads the game's `.forge` archives directly, shows any of ~48,000 models in a
 
 ## Run
 
-**From a release:** download `ForHonorBrowser.exe`, put it in an empty folder and double-click it.
+**From a release:** download the zip from the [Releases](../../releases) page, unzip it into its own folder and double-click `ForHonorBrowser.exe`.
+
+The exe is not code-signed, so Windows SmartScreen may show "Windows protected your PC": choose *More info* → *Run anyway*, or run from source instead.
 
 **From source:**
 
@@ -36,7 +38,7 @@ python server.py
 
 A console window shows progress and the app opens at `http://127.0.0.1:8765` (as an Edge app window when Edge is installed).
 
-- **First start indexes the game** (about 3 minutes). Later starts take about 15 seconds.
+- **First start indexes the game** (about 3 minutes). Later starts take 15 to 50 seconds.
 - The index lives in a `cache` folder next to the app and is rebuilt automatically after a game update.
 - The game folder is found automatically in the usual Steam and Ubisoft Connect locations. If it is not found, a folder picker opens: choose the folder that contains `forhonor.exe`. The choice is saved in `settings.json` next to the app.
 - **Game folder…** (bottom of the left panel) changes the folder later; the app then re-indexes and reloads. The `FH_GAME` environment variable overrides both.
@@ -75,15 +77,26 @@ A console window shows progress and the app opens at `http://127.0.0.1:8765` (as
 |---|---|
 | `fh.py` | Format reader and GLB builder. `python fh.py` runs a self-check. |
 | `server.py`, `index.html` | The app. |
-| `_test.py` | Builds N random models and reports failures. |
-| `_sheet.py`, `_blsheet.py`, `_montage.py` | Render one outfit per hero into contact sheets (needs Blender). |
+| `build.bat` | Builds `ForHonorBrowser.exe` with PyInstaller. |
+| `tools/test_models.py` | Builds N random models and reports failures. |
+| `tools/hero_sheet_*.py` | Render one outfit per hero into contact sheets (needs Blender). |
 
 ### Build the exe
 
 ```bash
-pip install pyinstaller
-python -m PyInstaller --onefile --console --name ForHonorBrowser --add-data "%CD%\index.html;." --distpath . --workpath build --specpath build server.py
+pip install -r requirements.txt pyinstaller
+build.bat
 ```
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Folder picker keeps rejecting the folder | Pick the folder that contains `forhonor.exe`, `oo2core_7_win64.dll` and the `.forge` files. |
+| Blank 3D view, list works | No internet: three.js could not load from the CDN. |
+| Window does not open | Open `http://127.0.0.1:8765` in a browser while the console window is running. |
+| Wrong or stale models after a game update | Delete the `cache` folder next to the app and start again. |
+| "no decodable meshes" | That object is an effect or level piece the reader does not support. |
 
 ## Legal
 

@@ -14,3 +14,4 @@ __pycache__/
 *.log
 *.err
 settings.json
+release/

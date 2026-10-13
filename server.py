@@ -3,6 +3,7 @@ import os, sys, re, json, threading, subprocess, webbrowser, socket
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
+VERSION = '1.0.0'
 PORT = 8765
 URL = 'http://127.0.0.1:%d' % PORT
 FACTIONS = {'knight', 'viking', 'samurai', 'chinese', 'outlanders'}
@@ -80,7 +81,7 @@ if not fh.game_ok(fh.GAME):
     if not p:
         sys.exit('No game folder selected.')
     fh.set_game(p)
-print('For Honor Browser - reading', fh.GAME)
+print('For Honor Browser', VERSION, '- reading', fh.GAME)
 db = fh.DB()
 lock = threading.Lock()      # Oodle output buffer and file handles are shared
 
@@ -162,7 +163,7 @@ class H(BaseHTTPRequestHandler):
                 r = {'total': len(db.catalog), 'items': search(q.get('q', [''])[0])}
                 self.send(200, json.dumps(r).encode(), 'application/json')
             elif u.path == '/api/game':
-                self.send(200, json.dumps({'game': fh.GAME}).encode(), 'application/json')
+                self.send(200, json.dumps({'game': fh.GAME, 'version': VERSION}).encode(), 'application/json')
             elif u.path == '/api/choose':       # folder picker; a new folder needs a fresh index, so restart
                 p = pick_folder(fh.GAME)
                 changed = bool(p) and os.path.normcase(os.path.normpath(p)) != os.path.normcase(os.path.normpath(fh.GAME))

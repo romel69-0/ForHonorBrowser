@@ -58,7 +58,7 @@
 <div id="app">
   <aside id="left">
     <header>
-      <h1>For Honor Browser</h1>
+      <h1>For Honor Browser <small id="ver" style="color:var(--dim);font-weight:400;text-transform:none"></small></h1>
       <div class="tabs" role="tablist">
         <button id="tabHeroes" role="tab" aria-selected="true">Heroes</button>
         <button id="tabAll" role="tab" aria-selected="false">All models</button>
@@ -334,7 +334,7 @@ $('dlCustom').onclick = () => {
 };
 // self-check hook: resolves to the customized export (ArrayBuffer) without saving a file
 window.fhExport = () => new Promise((res, rej) => new GLTFExporter().parse(root, res, rej, { binary: true }));
-fetch('/api/game').then(r => r.json()).then(g => $('gameBtn').title = 'Game folder: ' + g.game);
+fetch('/api/game').then(r => r.json()).then(g => { $('gameBtn').title = 'Game folder: ' + g.game; $('ver').textContent = 'v' + g.version; });
 $('gameBtn').onclick = async () => {
   status('Choose the folder in the dialog window…');
   const r = await (await fetch('/api/choose')).json();

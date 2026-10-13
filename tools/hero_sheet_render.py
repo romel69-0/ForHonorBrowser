@@ -1,6 +1,8 @@
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # repo root (fh.py)
 import bpy, json, math, os, sys
 from mathutils import Vector
-D = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs')
+D = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'thumbs')
 idx = json.load(open(os.path.join(D, 'index.json')))
 only = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 for key, v in idx.items():

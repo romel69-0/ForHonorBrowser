@@ -1,6 +1,8 @@
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # repo root (fh.py)
 import json, os, sys
 from PIL import Image, ImageDraw
-D = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs')
+D = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'thumbs')
 idx = json.load(open(os.path.join(D, 'index.json')))
 keys = [k for k in idx if os.path.exists(os.path.join(D, k + '.png'))]
 per = 10
