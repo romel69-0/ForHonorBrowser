@@ -4,24 +4,45 @@ import os, sys, struct, ctypes, pickle, re, io, json, mmap, glob, shutil
 import numpy as np
 from PIL import Image
 
+HERE = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))   # cache lives next to the exe
+RES = getattr(sys, '_MEIPASS', HERE)   # bundled files when frozen
+SETTINGS = os.path.join(HERE, 'settings.json')
+
+
+def game_ok(p):
+    """a For Honor folder has the forge archives and the Oodle dll"""
+    return bool(p) and os.path.exists(os.path.join(p, 'oo2core_7_win64.dll')) and bool(glob.glob(os.path.join(p, '*.forge')))
+
+
 def _find_game():
-    """FH_GAME, else the usual Steam / Ubisoft Connect locations on any drive"""
+    """FH_GAME, else the folder saved by the folder picker, else the usual Steam / Ubisoft Connect locations"""
     if os.environ.get('FH_GAME'):
         return os.environ['FH_GAME']
+    try:
+        p = json.load(open(SETTINGS)).get('game')
+        if game_ok(p):
+            return p
+    except (OSError, ValueError):
+        pass
     tails = (r'SteamLibrary\steamapps\common\For Honor', r'Program Files (x86)\Steam\steamapps\common\For Honor',
              r'Steam\steamapps\common\For Honor', r'Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\For Honor',
              r'Games\For Honor')
     for d in 'CDEFGH':
         for t in tails:
             p = d + ':\\' + t
-            if os.path.exists(os.path.join(p, 'oo2core_7_win64.dll')):
+            if game_ok(p):
                 return p
-    return r'C:\Program Files (x86)\Steam\steamapps\common\For Honor'
+    return ''
+
+
+def set_game(p):
+    global GAME, _oodle
+    GAME = os.path.normpath(p)
+    _oodle = None
+    json.dump({'game': GAME}, open(SETTINGS, 'w'))
 
 
 GAME = _find_game()
-HERE = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))   # cache lives next to the exe
-RES = getattr(sys, '_MEIPASS', HERE)   # bundled files when frozen
 CACHE = os.path.join(HERE, 'cache')
 M32 = 0xffffffff
 M64 = 0xffffffffffffffff

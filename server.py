@@ -52,6 +52,34 @@ if already_running():
     sys.exit(0)
 
 import fh
+
+
+def pick_folder(initial=''):
+    """native folder dialog; returns a valid For Honor folder or None when cancelled"""
+    import tkinter
+    from tkinter import filedialog, messagebox
+    root = tkinter.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    try:
+        while True:
+            p = filedialog.askdirectory(parent=root, initialdir=initial or None,
+                                        title='Select your For Honor game folder (the one containing forhonor.exe)')
+            if not p:
+                return None
+            if fh.game_ok(p):
+                return p
+            messagebox.showerror('For Honor Browser', 'That folder has no For Honor .forge files and oo2core_7_win64.dll.\n'
+                                 'Pick the folder that contains forhonor.exe.', parent=root)
+    finally:
+        root.destroy()
+
+
+if not fh.game_ok(fh.GAME):
+    p = pick_folder()
+    if not p:
+        sys.exit('No game folder selected.')
+    fh.set_game(p)
 print('For Honor Browser - reading', fh.GAME)
 db = fh.DB()
 lock = threading.Lock()      # Oodle output buffer and file handles are shared
@@ -106,6 +134,13 @@ def model(fid, full):
     return glb
 
 
+def restart():
+    srv.server_close()
+    args = [sys.executable] + ([] if getattr(sys, 'frozen', False) else [os.path.abspath(__file__)]) + ['--no-browser']
+    subprocess.Popen(args, cwd=fh.HERE)
+    os._exit(0)
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -126,6 +161,16 @@ class H(BaseHTTPRequestHandler):
             elif u.path == '/api/search':
                 r = {'total': len(db.catalog), 'items': search(q.get('q', [''])[0])}
                 self.send(200, json.dumps(r).encode(), 'application/json')
+            elif u.path == '/api/game':
+                self.send(200, json.dumps({'game': fh.GAME}).encode(), 'application/json')
+            elif u.path == '/api/choose':       # folder picker; a new folder needs a fresh index, so restart
+                p = pick_folder(fh.GAME)
+                changed = bool(p) and os.path.normcase(os.path.normpath(p)) != os.path.normcase(os.path.normpath(fh.GAME))
+                if changed:
+                    fh.set_game(p)
+                self.send(200, json.dumps({'game': fh.GAME, 'restart': changed}).encode(), 'application/json')
+                if changed:
+                    threading.Thread(target=restart, daemon=True).start()
             elif u.path == '/api/heroes':
                 self.send(200, json.dumps(HEROES).encode(), 'application/json')
             elif u.path == '/api/model':

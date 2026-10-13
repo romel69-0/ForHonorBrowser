@@ -38,7 +38,8 @@ A console window shows progress and the app opens at `http://127.0.0.1:8765` (as
 
 - **First start indexes the game** (about 3 minutes). Later starts take about 15 seconds.
 - The index lives in a `cache` folder next to the app and is rebuilt automatically after a game update.
-- The game folder is found automatically in the usual Steam and Ubisoft Connect locations. If it is not found, set the `FH_GAME` environment variable to the folder that contains the `.forge` files.
+- The game folder is found automatically in the usual Steam and Ubisoft Connect locations. If it is not found, a folder picker opens: choose the folder that contains `forhonor.exe`. The choice is saved in `settings.json` next to the app.
+- **Game folder…** (bottom of the left panel) changes the folder later; the app then re-indexes and reloads. The `FH_GAME` environment variable overrides both.
 - Close the console window to quit.
 
 ## Use

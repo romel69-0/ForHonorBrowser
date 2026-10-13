@@ -66,6 +66,7 @@
       <input id="q" type="search" placeholder="Search…" autocomplete="off" aria-label="Search models">
       <div class="quick" id="quick"></div>
       <div id="count"></div>
+      <button class="btn wide" id="gameBtn" title="Change the For Honor folder">Game folder…</button>
     </header>
     <div id="list" role="list"></div>
   </aside>
@@ -333,6 +334,14 @@ $('dlCustom').onclick = () => {
 };
 // self-check hook: resolves to the customized export (ArrayBuffer) without saving a file
 window.fhExport = () => new Promise((res, rej) => new GLTFExporter().parse(root, res, rej, { binary: true }));
+fetch('/api/game').then(r => r.json()).then(g => $('gameBtn').title = 'Game folder: ' + g.game);
+$('gameBtn').onclick = async () => {
+  status('Choose the folder in the dialog window…');
+  const r = await (await fetch('/api/choose')).json();
+  if (!r.restart) { $('gameBtn').title = 'Game folder: ' + r.game; return stats(); }
+  status('Indexing ' + r.game + ' — this page reloads when ready (about 3 minutes)…');
+  const t = setInterval(async () => { try { if ((await fetch('/api/game')).ok) { clearInterval(t); location.reload(); } } catch (e) {} }, 3000);
+};
 fetch('/api/heroes').then(r => r.json()).then(h => { heroes = h; setTab('heroes'); stats(); })
   .catch(e => status('Server not reachable: ' + e.message, true));
 </script>
