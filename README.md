@@ -4,6 +4,10 @@ Browse, customize and export the 3D models in your own copy of **For Honor** (PC
 
 It reads the game's `.forge` archives directly, shows any of ~48,000 models in a 3D view, lets you mix armour parts and recolour them, and exports the result as glTF (`.glb`) for Blender or any other 3D tool.
 
+![Warmonger outfit loaded in For Honor Browser](docs/screenshots/warmonger.png)
+
+![Kyoshin outfit with the hero list and customize panel](docs/screenshots/kyoshin.png)
+
 > **Unofficial fan tool.** Not affiliated with or endorsed by Ubisoft. It contains no game files: you need your own installed copy of For Honor. Exported models remain Ubisoft's property; keep them for personal use and do not redistribute them.
 
 ## Features
